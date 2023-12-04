@@ -1,0 +1,6 @@
+NP: 5  # size of population
+CR: 0.3  # the threshold of random choose in crossover
+F: 0.95  # the constant in permutation
+max_gen: 30000  # max loop number
+y: 2  # the number of pair using to calculate difference
+seed: 2020

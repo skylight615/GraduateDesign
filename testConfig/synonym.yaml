@@ -1,0 +1,86 @@
+1:
+  - UUU
+  - UUC
+2:
+  - UUA
+  - UUG
+  - CUU
+  - CUC
+  - CUA
+  - CUG
+3:
+  - AUU
+  - AUC
+  - AUA
+4:
+  - AUG
+5:
+  - GUU
+  - GUC
+  - GUA
+  - GUG
+6:
+  - UCU
+  - UCC
+  - UCA
+  - UCG
+  - AGU
+  - AGC
+7:
+  - CCU
+  - CCC
+  - CCA
+  - CCG
+8:
+  - ACU
+  - ACC
+  - ACA
+  - ACG
+9:
+  - GCU
+  - GCC
+  - GCA
+  - GCG
+10:
+  - UAU
+  - UAC
+11:
+  - CAU
+  - CAC
+12:
+  - CAA
+  - CAG
+13:
+  - AAU
+  - AAC
+14:
+  - AAA
+  - AAG
+15:
+  - GAU
+  - GAC
+16:
+  - GAA
+  - GAG
+17:
+  - UGU
+  - UGC
+18:
+  - UGG
+19:
+  - CGU
+  - CGC
+  - CGA
+  - CGG
+  - AGA
+  - AGG
+20:
+  - GGU
+  - GGC
+  - GGA
+  - GGG
+21:
+  - UAG
+  - UAA
+  - UGA
+
