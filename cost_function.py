@@ -1,6 +1,8 @@
+import random
 import RNA
-
+import time
 from DataLoader import DataLoader
+import multiprocessing as mp
 
 
 def mfe_cost(seq):
@@ -10,7 +12,12 @@ def mfe_cost(seq):
 
 
 def cost(population: list, loader: DataLoader):
-    results = list()
-    for vec in population:
-        results.append(mfe_cost(loader.recover2str(vec)))
+    begin = time.time()
+    print(mp.cpu_count())
+    pool = mp.Pool(processes=mp.cpu_count())
+    results = pool.map(mfe_cost, [loader.recover2str(vec) for vec in population])
+    pool.close()
+    pool.join()
+    end = time.time()
+    print(f"cost time: {end - begin}")
     return results

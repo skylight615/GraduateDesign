@@ -41,9 +41,7 @@ class DataLoader:
     # convert the digit code to mRNA string(used to calculate the mfe)
     def recover2str(self, code: list):
         mrna = ""
-        for index in code:
-            mrna = mrna + self.code2str[index]
-        return mrna
+        return mrna.join([self.code2str[index] for index in code])
 
     def check_type(self, origin, modified):
         for i in range(len(origin)):
