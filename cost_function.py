@@ -12,12 +12,12 @@ def mfe_cost(seq):
 
 
 def cost(population: list, loader: DataLoader):
-    begin = time.time()
-    print(mp.cpu_count())
+    # begin = time.time()
+    # print(mp.cpu_count())
     pool = mp.Pool(processes=mp.cpu_count())
     results = pool.map(mfe_cost, [loader.recover2str(vec) for vec in population])
     pool.close()
     pool.join()
-    end = time.time()
-    print(f"cost time: {end - begin}")
+    # end = time.time()
+    # print(f"cost time: {end - begin}")
     return results

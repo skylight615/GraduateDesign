@@ -88,6 +88,14 @@ def select(population: list, next_generation: list):
     return res
 
 
+def DE(code_seq):
+    generation = init_population(code_seq)
+    for i in tqdm(range(config["max_gen"])):
+        generation = evolution(generation)
+        if i % 100 == 0:
+            logger.info(f"now loop is to {i}")
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
@@ -103,7 +111,8 @@ if __name__ == '__main__':
     parser = DataParser()
     process_recorder = list()
     seq = str()
-    handler = logging.FileHandler(f'./log/{str(config["seed"])+"-"+date}.log')
+    test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
+    handler = logging.FileHandler(f'./log/{test_name}.log')
     logger.addHandler(handler)
     random.seed(config["seed"])
     if arg.type == "protein":
@@ -115,11 +124,7 @@ if __name__ == '__main__':
     origin_value = cf.mfe_cost(seq)
     min_value, min_vec = origin_value, code_seq
     NP, F, CR = config["NP"], config["F"], config["CR"]
-    generation = init_population(code_seq)
-    for i in tqdm(range(config["max_gen"])):
-        generation = evolution(generation)
-        # if i % 100 == 0:
-        logger.info(f"now loop is to {i}")
+    DE(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
     logger.info(f"min_mfe: {min_value:6.2f} min seq: {dataset.recover2str(min_vec)}")
@@ -129,6 +134,6 @@ if __name__ == '__main__':
     logger.info(f"The protein in Baidu style is : {p}")
     plt.plot(range(config["max_gen"]), process_recorder)
     plt.show()
-    plt.savefig(f"./evo_image/{date}.png")
+    plt.savefig(f"./evo_image/{test_name}.png")
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
