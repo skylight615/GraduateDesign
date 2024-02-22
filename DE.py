@@ -1,3 +1,4 @@
+import math
 import random
 import time
 import cost_function as cf
@@ -10,12 +11,13 @@ import logging
 
 from DataLoader import DataLoader, DataParser
 
-min_vec = 0  # record the vector that has min cost value now
+min_vec = list()  # record the sub vector that has min cost value now
 min_value = 99999  # record the current min value during evolution
 cost_list = list()
 CRm = 0.5
 SaDE_p = 0.5
 age = 0
+sub_num = 0
 ns1, ns2, nf1, nf2 = 0, 0, 0, 0
 f_rec = list()
 CR_list = list()
@@ -99,11 +101,12 @@ def evolve(population: list, F: float):
 
 
 # generate the v_i using x_i. The difference is calculated by random, x_i also a random member
-def evolution(population: list):
+# population is the sub groups, and generation is the origin sequence
+def evolution(population: list, index: list, generation: list):
     # do permutation for population[index]
     F = generate_f()
     next_generation, function_index = evolve(population, F)
-    next_generation = select(population, next_generation, function_index)
+    next_generation = select(population, next_generation, function_index, index, generation)
     process_recorder.append(min_value)
     return next_generation
 
@@ -129,14 +132,14 @@ def crossover(x, v, index):
 
 
 # select between u_i and x_i into next generation, and criterion is cost function
-def select(population: list, next_generation: list, function_index: list):
+def select(population: list, next_generation: list, function_index: list, index: list, generation: list):
     global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
-    next_cost_list = cf.cost(next_generation, dataset)
+    new_generation = generation
+    for i in range(NP):
+        new_generation[i][index] = next_generation[i]
+    next_cost_list = cf.cost(new_generation, dataset)
     res = list()
     for index in range(NP):
-        if next_cost_list[index] < min_value:
-            min_value = next_cost_list[index]
-            min_vec = next_generation[index]
         if cost_list[index] > next_cost_list[index]:
             res.append(next_generation[index])
             CR_rec.append(CR_list[index])
@@ -156,11 +159,11 @@ def select(population: list, next_generation: list, function_index: list):
     return res
 
 
-def DE(code_seq):
+def SaNSDE(generation, index):
     global age
-    generation = init_population(code_seq)
-    for i in tqdm(range(config["max_gen"])):
-        generation = evolution(generation)
+    for i in tqdm(range(config["inner_loop"])):
+        sub_gen = [item[index] for item in generation]
+        generation = evolution(sub_gen, index, generation)
         age = i
         if i != 0 and i % 20 == 0:
             update_CRm()
@@ -168,6 +171,54 @@ def DE(code_seq):
             update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
+    return generation
+
+
+def divide_groups(length):
+    global sub_num
+    index = np.random.choice(range(0, length), size=length, replace=False)
+    return np.array_split(index, sub_num)
+
+
+def evaluate(generation: list):
+    global min_value, min_vec
+    for i in range(NP):
+        if cost_list[i] < min_value:
+            min_value = cost_list[i]
+            min_vec = generation[i]
+    return min_vec
+
+
+def find_candidates(generation: list, value_list: list):
+    worst_vec = list()
+    worst_value = 0
+    rand_vec = list()
+    for i in range(NP):
+        if value_list[i] > worst_value:
+            worst_value = value_list[i]
+            worst_vec = generation[i]
+    rand_value = random.randint(0, NP-1)
+    rand_vec = generation[rand_value]
+    return worst_vec, rand_vec
+
+
+def DECC_G(code_seq):
+    global sub_num, min_vec, min_value
+    w = np.ones((NP, sub_num))
+    generation = init_population(code_seq)
+    for _ in tqdm(range(config["outer_loop"])):
+        groups_index = divide_groups(len(code_seq))
+        for k in range(sub_num):
+            min_value = 0
+            min_vec = list()
+            w[:, k] = np.random.normal(loc=0, scale=1, size=NP)
+            next_generation = SaNSDE(generation, groups_index[k])
+            generation[:, groups_index[k]] = next_generation
+            generation[:][groups_index[k]] = min_vec
+            evaluate(generation)
+        value_list = cf.cost(generation, dataset)
+        best = min_vec
+        worst, rand = find_candidates(generation, value_list)
 
 
 # Press the green button in the gutter to run the script.
@@ -199,7 +250,8 @@ if __name__ == '__main__':
     min_value, min_vec = origin_value, code_seq
     NP = config["NP"]
     CR_list = [0.5 for _ in range(NP)]
-    DE(code_seq)
+    sub_num = math.ceil(num/config["sub_size"])
+    DECC_G(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
     logger.info(f"min_mfe: {min_value:6.2f} min seq: {dataset.recover2str(min_vec)}")
