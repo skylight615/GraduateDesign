@@ -8,6 +8,7 @@ import yaml
 import argparse
 import matplotlib.pyplot as plt
 import logging
+import multiprocessing as mp
 
 from DataLoader import DataLoader, DataParser
 
@@ -164,7 +165,7 @@ def select(population: list, next_generation: list, function_index: list, index:
 
 
 def SaNSDE(generation, index):
-    global age
+    global age, ns1, ns2, nf1, nf2
     sub_gen = [item[index] for item in generation]
     for i in tqdm(range(config["inner_loop"])):
         sub_gen = evolution(sub_gen, index, generation)
@@ -175,6 +176,7 @@ def SaNSDE(generation, index):
             update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
+    age, ns1, ns2, nf1, nf2 = 0, 0, 0, 0, 0
     return sub_gen
 
 
@@ -186,14 +188,10 @@ def divide_groups(length):
 
 def DE_w(groups_index: list, item: list, w: list):
     global cost_list_w
-    w_generation = list()
-    w_generation.append(w)
-    # init the w population
-    for _ in range(NP-1):
-        w_generation.append(np.random.normal(loc=0, scale=1, size=sub_num))
+    w_generation = w.copy()
     cost_list_w = weight_eval(w_generation, item, groups_index)
     # evolve the w population
-    for _ in range(config["inner_loop"]):
+    for _ in tqdm(range(config["inner_loop"])):
         next_generation = evolve_w(w_generation)
         w_generation = select_w(w_generation, next_generation, item, groups_index)
     return w_generation
@@ -205,7 +203,8 @@ def weight_eval(w_generation: list, item: list, groups_index: list):
     for i in range(NP):
         tem = item.copy()
         for j in range(sub_num):
-            tem[groups_index[j]] = item[groups_index[j]]*w_generation[i][j]
+            for k in range(len(groups_index[j])):
+                tem[groups_index[j][k]] = item[groups_index[j][k]] * w_generation[i][j]
         for n in range(len(tem)):
             # (id - base) % size + base
             base = dataset.base[item[n]]
@@ -259,7 +258,7 @@ def select_w(generation: list, next_generation: list, item: list, groups_index: 
 
 def find_candidates(generation: list, value_list: list):
     worst_vec = list()
-    worst_value = 0
+    worst_value = -99999
     best_vec = list()
     best_value = 99999
     for i in range(NP):
@@ -289,9 +288,9 @@ def DECC_G(code_seq):
                     generation[j][groups_index[k][i]] = next_generation[j][i]
         value_list = cf.cost(generation, dataset)
         best, worst, rand = find_candidates(generation, value_list)
-        # DE_w(groups_index, best, w)
-        # DE_w(groups_index, worst, w)
-        # DE_w(groups_index, rand, w)
+        DE_w(groups_index, best, w)
+        DE_w(groups_index, worst, w)
+        DE_w(groups_index, rand, w)
         process_recorder.append(min_value)
 
 
