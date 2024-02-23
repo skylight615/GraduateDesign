@@ -14,6 +14,7 @@ from DataLoader import DataLoader, DataParser
 min_vec = list()  # record the sub vector that has min cost value now
 min_value = 99999  # record the current min value during evolution
 cost_list = list()
+cost_list_w = list()
 CRm = 0.5
 SaDE_p = 0.5
 age = 0
@@ -189,17 +190,94 @@ def evaluate(generation: list):
     return min_vec
 
 
+def DE_w(groups_index: list, item: list, w: list):
+    global cost_list_w
+    w_generation = list()
+    w_generation.append(w)
+    # init the w population
+    for _ in range(NP-1):
+        w_generation.append(np.random.normal(loc=0, scale=1, size=sub_num))
+    cost_list_w = weight_eval(w_generation, item, groups_index)
+    # evolve the w population
+    for _ in range(config["inner_loop"]):
+        next_generation = evolve_w(w_generation)
+        w_generation = select_w(w_generation, next_generation, item, groups_index)
+    return w_generation
+
+
+def weight_eval(w_generation: list, item: list, groups_index: list):
+    global min_value, min_vec
+    pop = list()
+    for i in range(NP):
+        tem = item
+        for j in range(sub_num):
+            tem[groups_index[j]] = item[groups_index[j]]*w_generation[i][j]
+        for n in range(len(tem)):
+            # (id - base) % size + base
+            base = dataset.base[item[n]]
+            tem[n] = (tem[n] - base[0]) % base[1] + base[0]
+        pop.append(tem)
+    costs = cf.cost(pop, dataset)
+    for i in range(NP):
+        if costs[i] < min_value:
+            min_value = costs[i]
+            min_vec = pop[i]
+    return costs
+
+
+def evolve_w(generation: list):
+    next_generation = list()
+    for index in range(NP):
+        diff = np.zeros(shape=sub_num, dtype=float)
+        rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2), replace=False)
+        for pair in rand_i:
+            diff = diff + generation[pair[0]] - generation[pair[1]]
+        new_seq = np.floor(generation[index] + config["F_w"] * diff)
+        next_generation.append(crossover_w(generation[index], new_seq))
+    return next_generation
+
+
+def crossover_w(x, v):
+    u_j = np.zeros(num)
+    r = range(num)
+    for j in r:
+        rand = np.random.uniform(0, 1, 1)
+        save_index = np.random.choice(r, size=1)
+        if rand <= config["CR_w"] or j == save_index:
+            u_j[j] = v[j]
+        else:
+            u_j[j] = x[j]
+    return u_j
+
+
+def select_w(generation: list, next_generation: list, item: list, groups_index: list):
+    global cost_list_w
+    res = list()
+    costs = weight_eval(next_generation, item, groups_index)
+    for index in range(NP):
+        if cost_list_w[index] > costs[index]:
+            cost_list_w[index] = costs[index]
+            res.append(next_generation[index])
+        else:
+            res.append(generation[index])
+    return res
+
+
 def find_candidates(generation: list, value_list: list):
     worst_vec = list()
     worst_value = 0
-    rand_vec = list()
+    best_vec = list()
+    best_value = 99999
     for i in range(NP):
         if value_list[i] > worst_value:
             worst_value = value_list[i]
             worst_vec = generation[i]
+        if value_list[i] < best_value:
+            best_value = value_list[i]
+            best_vec = generation[i]
     rand_value = random.randint(0, NP-1)
     rand_vec = generation[rand_value]
-    return worst_vec, rand_vec
+    return best_vec, worst_vec, rand_vec
 
 
 def DECC_G(code_seq):
@@ -217,8 +295,10 @@ def DECC_G(code_seq):
             generation[:][groups_index[k]] = min_vec
             evaluate(generation)
         value_list = cf.cost(generation, dataset)
-        best = min_vec
-        worst, rand = find_candidates(generation, value_list)
+        best, worst, rand = find_candidates(generation, value_list)
+        DE_w(groups_index, best, w)
+        DE_w(groups_index, worst, w)
+        DE_w(groups_index, rand, w)
 
 
 # Press the green button in the gutter to run the script.
