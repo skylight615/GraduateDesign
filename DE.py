@@ -77,19 +77,30 @@ def update_CRm():
     logger.info(f"CRm: {CRm}")
 
 
-def evolve(population: list, F: float):
+# generate the v_i using x_i. The difference is calculated by random, x_i also a random member
+# population is the sub groups, and generation is the origin sequence
+def evolution(population: list, index: list, generation: list):
+    # do permutation for population[index]
+    F = generate_f()
+    next_generation, function_index = evolve(population, F, index)
+    next_generation = select(population, next_generation, function_index, index, generation)
+    process_recorder.append(min_value)
+    return next_generation
+
+
+def evolve(population: list, F: float, groups_index):
     next_generation = list()
     function_index = list()
     for index in range(NP):
         function_index.append(1)
-        diff = np.zeros(shape=num, dtype=float)
+        diff = np.zeros(shape=len(population[0]), dtype=float)
         rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2), replace=False)
         for pair in rand_i:
             diff = diff + population[pair[0]] - population[pair[1]]
         # SaDE
         p = np.random.uniform(0, 1, 1)
         if p > SaDE_p:
-            diff += min_vec - population[index]
+            diff += min_vec[groups_index] - population[index]
             function_index[index] = 3
         new_seq = np.floor(population[index] + F * diff)
         for n in range(len(new_seq)):
@@ -101,22 +112,11 @@ def evolve(population: list, F: float):
     return next_generation, function_index
 
 
-# generate the v_i using x_i. The difference is calculated by random, x_i also a random member
-# population is the sub groups, and generation is the origin sequence
-def evolution(population: list, index: list, generation: list):
-    # do permutation for population[index]
-    F = generate_f()
-    next_generation, function_index = evolve(population, F)
-    next_generation = select(population, next_generation, function_index, index, generation)
-    process_recorder.append(min_value)
-    return next_generation
-
-
 # generate the u_i using v_i and x_i
 def crossover(x, v, index):
     global CRm, CR_list
-    u_j = np.zeros(num)
-    r = range(num)
+    u_j = np.zeros(len(x))
+    r = range(len(x))
     if age % 5 == 0:
         CR = np.random.normal(CRm, 0.1, 1)
         CR_list[index] = CR
@@ -135,7 +135,7 @@ def crossover(x, v, index):
 # select between u_i and x_i into next generation, and criterion is cost function
 def select(population: list, next_generation: list, function_index: list, index: list, generation: list):
     global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
-    new_generation = generation
+    new_generation = generation.copy()
     for i in range(NP):
         new_generation[i][index] = next_generation[i]
     next_cost_list = cf.cost(new_generation, dataset)
@@ -157,14 +157,17 @@ def select(population: list, next_generation: list, function_index: list, index:
                 nf1 += 1
             elif function_index[index] == 3:
                 nf2 += 1
+        if cost_list[index] < min_value:
+            min_value = cost_list[index]
+            min_vec = new_generation[index]
     return res
 
 
 def SaNSDE(generation, index):
     global age
+    sub_gen = [item[index] for item in generation]
     for i in tqdm(range(config["inner_loop"])):
-        sub_gen = [item[index] for item in generation]
-        generation = evolution(sub_gen, index, generation)
+        sub_gen = evolution(sub_gen, index, generation)
         age = i
         if i != 0 and i % 20 == 0:
             update_CRm()
@@ -172,22 +175,13 @@ def SaNSDE(generation, index):
             update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
-    return generation
+    return sub_gen
 
 
 def divide_groups(length):
     global sub_num
     index = np.random.choice(range(0, length), size=length, replace=False)
     return np.array_split(index, sub_num)
-
-
-def evaluate(generation: list):
-    global min_value, min_vec
-    for i in range(NP):
-        if cost_list[i] < min_value:
-            min_value = cost_list[i]
-            min_vec = generation[i]
-    return min_vec
 
 
 def DE_w(groups_index: list, item: list, w: list):
@@ -209,7 +203,7 @@ def weight_eval(w_generation: list, item: list, groups_index: list):
     global min_value, min_vec
     pop = list()
     for i in range(NP):
-        tem = item
+        tem = item.copy()
         for j in range(sub_num):
             tem[groups_index[j]] = item[groups_index[j]]*w_generation[i][j]
         for n in range(len(tem)):
@@ -238,8 +232,8 @@ def evolve_w(generation: list):
 
 
 def crossover_w(x, v):
-    u_j = np.zeros(num)
-    r = range(num)
+    u_j = np.zeros(len(x))
+    r = range(len(x))
     for j in r:
         rand = np.random.uniform(0, 1, 1)
         save_index = np.random.choice(r, size=1)
@@ -283,22 +277,22 @@ def find_candidates(generation: list, value_list: list):
 def DECC_G(code_seq):
     global sub_num, min_vec, min_value
     w = np.ones((NP, sub_num))
+    min_vec = np.zeros(len(code_seq))
     generation = init_population(code_seq)
     for _ in tqdm(range(config["outer_loop"])):
         groups_index = divide_groups(len(code_seq))
         for k in range(sub_num):
-            min_value = 0
-            min_vec = list()
             w[:, k] = np.random.normal(loc=0, scale=1, size=NP)
             next_generation = SaNSDE(generation, groups_index[k])
-            generation[:, groups_index[k]] = next_generation
-            generation[:][groups_index[k]] = min_vec
-            evaluate(generation)
+            for i in range(len(groups_index[k])):
+                for j in range(NP):
+                    generation[j][groups_index[k][i]] = next_generation[j][i]
         value_list = cf.cost(generation, dataset)
         best, worst, rand = find_candidates(generation, value_list)
-        DE_w(groups_index, best, w)
-        DE_w(groups_index, worst, w)
-        DE_w(groups_index, rand, w)
+        # DE_w(groups_index, best, w)
+        # DE_w(groups_index, worst, w)
+        # DE_w(groups_index, rand, w)
+        process_recorder.append(min_value)
 
 
 # Press the green button in the gutter to run the script.
@@ -316,7 +310,7 @@ if __name__ == '__main__':
     parser = DataParser()
     process_recorder = list()
     seq = str()
-    test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
+    test_name = str(config["seed"])+"-"+str(config["outer_loop"])+"-"+date
     handler = logging.FileHandler(f'./log/{test_name}.log')
     logger.addHandler(handler)
     random.seed(config["seed"])
@@ -325,12 +319,11 @@ if __name__ == '__main__':
     elif arg.type == "mrna":
         seq = arg.input
     code_seq = dataset.convert2code(seq)
-    num = len(code_seq)
     origin_value = cf.mfe_cost(seq)
     min_value, min_vec = origin_value, code_seq
     NP = config["NP"]
     CR_list = [0.5 for _ in range(NP)]
-    sub_num = math.ceil(num/config["sub_size"])
+    sub_num = math.ceil(len(code_seq)/config["sub_size"])
     DECC_G(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
@@ -339,7 +332,7 @@ if __name__ == '__main__':
     logger.info(f"modified sequence code: {min_vec}")
     logger.info(f"If modified mrna has same structure with origin mrna : {dataset.check_type(code_seq, min_vec)}")
     logger.info(f"The protein in Baidu style is : {p}")
-    plt.plot(range(config["max_gen"]), process_recorder)
+    plt.plot(range(len(process_recorder)), process_recorder)
     plt.show()
     plt.savefig(f"./evo_image/{test_name}.png")
 
