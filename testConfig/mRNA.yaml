@@ -1,8 +1,8 @@
-NP: 40  # size of population
+NP: 36  # size of population
 CR_w: 0.1  # the threshold of random choose in crossover
 F_w: 0.9   # the constant in permutation, now using the adaptive one
-outer_loop: 10  # max outer loop number
-inner_loop: 10  # max inner loop number
-sub_size: 10  # the size of sub population
-y: 2  # the number of pair using to calculate difference
-seed: 2002
+outer_loop: 50  # max outer loop number
+inner_loop: 50  # max inner loop number
+sub_size: 100  # the size of sub population
+y: 1  # the number of pair using to calculate difference
+seed: 2022

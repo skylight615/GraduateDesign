@@ -8,7 +8,6 @@ import yaml
 import argparse
 import matplotlib.pyplot as plt
 import logging
-import multiprocessing as mp
 
 from DataLoader import DataLoader, DataParser
 
@@ -20,6 +19,7 @@ CRm = 0.5
 SaDE_p = 0.5
 age = 0
 sub_num = 0
+unused = 0
 ns1, ns2, nf1, nf2 = 0, 0, 0, 0
 f_rec = list()
 CR_list = list()
@@ -103,7 +103,10 @@ def evolve(population: list, F: float, groups_index):
         if p > SaDE_p:
             diff += min_vec[groups_index] - population[index]
             function_index[index] = 3
-        new_seq = np.floor(population[index] + F * diff)
+        # DE/rand/1
+        # new_seq = np.floor(population[index] + F * diff)
+        # DE/best/1
+        new_seq = np.floor(min_vec[groups_index] + F * diff)
         for n in range(len(new_seq)):
             tem = population[index][n]
             # (id - base) % size + base
@@ -135,12 +138,13 @@ def crossover(x, v, index):
 
 # select between u_i and x_i into next generation, and criterion is cost function
 def select(population: list, next_generation: list, function_index: list, index: list, generation: list):
-    global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
+    global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec, unused
     new_generation = generation.copy()
     for i in range(NP):
         new_generation[i][index] = next_generation[i]
     next_cost_list = cf.cost(new_generation, dataset)
     res = list()
+    tmp = min_value
     for index in range(NP):
         if cost_list[index] > next_cost_list[index]:
             res.append(next_generation[index])
@@ -161,6 +165,10 @@ def select(population: list, next_generation: list, function_index: list, index:
         if cost_list[index] < min_value:
             min_value = cost_list[index]
             min_vec = new_generation[index]
+    if tmp == min_value:
+        unused += 1
+    else:
+        unused = 0
     return res
 
 
@@ -174,8 +182,7 @@ def SaNSDE(generation, index):
             update_CRm()
         if i != 0 and i % 50 == 0:
             update_SaDE_p()
-        if i % 100 == 0:
-            logger.info(f"now loop is to {i}")
+        logger.info(f"inner echo: {i} min_value: {min_value}")
     age, ns1, ns2, nf1, nf2 = 0, 0, 0, 0, 0
     return sub_gen
 
@@ -194,11 +201,10 @@ def DE_w(groups_index: list, item: list, w: list):
     for _ in tqdm(range(config["inner_loop"])):
         next_generation = evolve_w(w_generation)
         w_generation = select_w(w_generation, next_generation, item, groups_index)
-    return w_generation
 
 
 def weight_eval(w_generation: list, item: list, groups_index: list):
-    global min_value, min_vec
+    global min_value, min_vec, unused
     pop = list()
     for i in range(NP):
         tem = item.copy()
@@ -211,10 +217,16 @@ def weight_eval(w_generation: list, item: list, groups_index: list):
             tem[n] = (tem[n] - base[0]) % base[1] + base[0]
         pop.append(tem)
     costs = cf.cost(pop, dataset)
+    tmp = min_value
     for i in range(NP):
         if costs[i] < min_value:
             min_value = costs[i]
             min_vec = pop[i]
+    if tmp == min_value:
+        unused += 1
+    else:
+        unused = 0
+    process_recorder.append(min_value)
     return costs
 
 
@@ -279,6 +291,7 @@ def DECC_G(code_seq):
     min_vec = np.zeros(len(code_seq))
     generation = init_population(code_seq)
     for _ in tqdm(range(config["outer_loop"])):
+        logger.info(f"outer echo: {_}")
         groups_index = divide_groups(len(code_seq))
         for k in range(sub_num):
             w[:, k] = np.random.normal(loc=0, scale=1, size=NP)
@@ -291,7 +304,8 @@ def DECC_G(code_seq):
         DE_w(groups_index, best, w)
         DE_w(groups_index, worst, w)
         DE_w(groups_index, rand, w)
-        process_recorder.append(min_value)
+        if unused > 1000:
+            break
 
 
 # Press the green button in the gutter to run the script.
@@ -323,6 +337,7 @@ if __name__ == '__main__':
     NP = config["NP"]
     CR_list = [0.5 for _ in range(NP)]
     sub_num = math.ceil(len(code_seq)/config["sub_size"])
+    logger.info(f"NP: {NP} outer loop: {config['outer_loop']} inner loop: {config['inner_loop']} sub_num: {sub_num} seed: {config['seed']}")
     DECC_G(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
@@ -332,6 +347,7 @@ if __name__ == '__main__':
     logger.info(f"If modified mrna has same structure with origin mrna : {dataset.check_type(code_seq, min_vec)}")
     logger.info(f"The protein in Baidu style is : {p}")
     plt.plot(range(len(process_recorder)), process_recorder)
+    logger.info(f"calculate {len(process_recorder)} times")
     plt.show()
     plt.savefig(f"./evo_image/{test_name}.png")
 
