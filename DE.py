@@ -81,7 +81,7 @@ def evolve(population: list, F: float):
     function_index = list()
     for index in range(NP):
         function_index.append(1)
-        if min_vec != population[index]:
+        if min_value != cost_list[index]:
             diff = np.zeros(shape=num, dtype=float)
             rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2), replace=False)
             for pair in rand_i:
@@ -100,16 +100,21 @@ def evolve(population: list, F: float):
             next_generation.append(crossover(population[index], new_seq, index))
         else:
             # do the GTDE for the best member
-            for _ in range(config["NGT"]):
-                bottleneck_dims = target_bottleneck(len(population[0]))
-                new_best = construct_vec(bottleneck_dims, population)
-                new_cost = cf.mfe_cost(dataset.recover2str(new_best))
-                if new_cost < min_value:
-                    min_value = new_cost
-                    min_vec = new_best
-                    next_generation.append(new_best)
-                else:
-                    next_generation.append(population[index])
+            if age % 50 == 0:
+                buffer = list()
+                for _ in range(config["NGT"]):
+                    bottleneck_dims = list()
+                    while len(bottleneck_dims) == 0:
+                        bottleneck_dims = target_bottleneck(len(population[0]))
+                    new_best = construct_vec(bottleneck_dims, population, index)
+                    buffer.append(new_best)
+                costs = cf.cost(buffer, dataset)
+                for i in range(len(buffer)):
+                    if costs[i] < min_value:
+                        min_value = costs[i]
+                        min_vec = buffer[i]
+                        cost_list[index] = min_value
+            next_generation.append(min_vec)
     return next_generation, function_index
 
 
@@ -124,22 +129,24 @@ def target_bottleneck(dim: int):
     return res
 
 
-def construct_vec(bottleneck_dims: list, population: list):
+def construct_vec(bottleneck_dims: list, population: list, index: int):
     F_c = np.random.normal(0.5, 0.1, 1)
-    item1, item2 = np.random.choice(population, size=2, replace=False)
+    item1_id, item2_id = np.random.choice(range(len(population)), size=2, replace=False)
+    item1, item2 = population[item1_id], population[item2_id]
     new_best = min_vec.copy()
     for i in bottleneck_dims:
         rand = np.random.uniform(0, 1)
         if rand < config["P_m"]:
             # rand_item != item1 and item2
             while True:
-                rand_item = np.random.choice(population, size=1, replace=False)
-                if rand_item != item1 and rand_item != item2:
+                rand_item_id = np.random.choice(range(len(population)))
+                rand_item = population[rand_item_id]
+                if rand_item_id != item1_id and rand_item_id != item2_id:
                     break
-            new_best[i] = min_vec[i] + F_c * (item1[i] - rand_item[i])
+            new_best[i] = np.floor(min_vec[i] + F_c * (item1[i] - rand_item[i]))
         else:
-            new_best[i] = min_vec[i] + F_c * (item1[i] - item2[i])
-        base = dataset.base[new_best[i]]
+            new_best[i] = np.floor(min_vec[i] + F_c * (item1[i] - item2[i]))
+        base = dataset.base[population[index][i]]
         new_best[i] = (new_best[i] - base[0]) % base[1] + base[0]
     return new_best
 
@@ -214,13 +221,14 @@ def DE(code_seq):
     for i in tqdm(range(config["max_gen"])):
         generation = evolution(generation)
         age = i
+        logger.info(f"min_mfe: {min_value:6.2f}")
         if i != 0 and i % 20 == 0:
             update_CRm()
         if i != 0 and i % 50 == 0:
             update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
-        if unused > 1000:
+        if unused > 500:
             break
 
 
@@ -240,7 +248,7 @@ if __name__ == '__main__':
     process_recorder = list()
     seq = str()
     test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
-    handler = logging.FileHandler(f'./log/{test_name}.log')
+    handler = logging.FileHandler(f'./log/GTDE/{test_name}.log')
     logger.addHandler(handler)
     random.seed(config["seed"])
     if arg.type == "protein":
