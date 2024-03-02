@@ -1,6 +1,8 @@
 NP: 40  # size of population
 #CR: 0.1  # the threshold of random choose in crossover
 #F: 0.9   the constant in permutation, now using the adaptive one
-max_gen: 2000  # max loop number
-y: 2  # the number of pair using to calculate difference
+max_gen: 20000  # max loop number
+NGT: 400
+P_m: 0.01
+y: 1  # the number of pair using to calculate difference
 seed: 2002

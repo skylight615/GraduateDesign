@@ -16,6 +16,7 @@ cost_list = list()
 CRm = 0.5
 SaDE_p = 0.5
 age = 0
+unused = 0
 ns1, ns2, nf1, nf2 = 0, 0, 0, 0
 f_rec = list()
 CR_list = list()
@@ -75,35 +76,86 @@ def update_CRm():
 
 
 def evolve(population: list, F: float):
+    global min_value, min_vec
     next_generation = list()
     function_index = list()
     for index in range(NP):
         function_index.append(1)
-        diff = np.zeros(shape=num, dtype=float)
-        rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2), replace=False)
-        for pair in rand_i:
-            diff = diff + population[pair[0]] - population[pair[1]]
-        # SaDE
-        p = np.random.uniform(0, 1, 1)
-        if p > SaDE_p:
-            diff += min_vec - population[index]
-            function_index[index] = 3
-        new_seq = np.floor(population[index] + F * diff)
-        for n in range(len(new_seq)):
-            tem = population[index][n]
-            # (id - base) % size + base
-            base = dataset.base[tem]
-            new_seq[n] = (new_seq[n] - base[0]) % base[1] + base[0]
-        next_generation.append(crossover(population[index], new_seq, index))
+        if min_vec != population[index]:
+            diff = np.zeros(shape=num, dtype=float)
+            rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2), replace=False)
+            for pair in rand_i:
+                diff = diff + population[pair[0]] - population[pair[1]]
+            # SaDE
+            p = np.random.uniform(0, 1, 1)
+            if p > SaDE_p:
+                diff += min_vec - population[index]
+                function_index[index] = 3
+            new_seq = np.floor(population[index] + F * diff)
+            for n in range(len(new_seq)):
+                tem = population[index][n]
+                # (id - base) % size + base
+                base = dataset.base[tem]
+                new_seq[n] = (new_seq[n] - base[0]) % base[1] + base[0]
+            next_generation.append(crossover(population[index], new_seq, index))
+        else:
+            # do the GTDE for the best member
+            for _ in range(config["NGT"]):
+                bottleneck_dims = target_bottleneck(len(population[0]))
+                new_best = construct_vec(bottleneck_dims, population)
+                new_cost = cf.mfe_cost(dataset.recover2str(new_best))
+                if new_cost < min_value:
+                    min_value = new_cost
+                    min_vec = new_best
+                    next_generation.append(new_best)
+                else:
+                    next_generation.append(population[index])
     return next_generation, function_index
+
+
+def target_bottleneck(dim: int):
+    res = []
+    for i in range(dim):
+        # p = Gaussian(0.01, 0.01)
+        p = np.random.normal(0.01, 0.01, 1)
+        rand = np.random.uniform(0, 1)
+        if rand < p:
+            res.append(i)
+    return res
+
+
+def construct_vec(bottleneck_dims: list, population: list):
+    F_c = np.random.normal(0.5, 0.1, 1)
+    item1, item2 = np.random.choice(population, size=2, replace=False)
+    new_best = min_vec.copy()
+    for i in bottleneck_dims:
+        rand = np.random.uniform(0, 1)
+        if rand < config["P_m"]:
+            # rand_item != item1 and item2
+            while True:
+                rand_item = np.random.choice(population, size=1, replace=False)
+                if rand_item != item1 and rand_item != item2:
+                    break
+            new_best[i] = min_vec[i] + F_c * (item1[i] - rand_item[i])
+        else:
+            new_best[i] = min_vec[i] + F_c * (item1[i] - item2[i])
+        base = dataset.base[new_best[i]]
+        new_best[i] = (new_best[i] - base[0]) % base[1] + base[0]
+    return new_best
 
 
 # generate the v_i using x_i. The difference is calculated by random, x_i also a random member
 def evolution(population: list):
     # do permutation for population[index]
+    global min_value, min_vec, unused
     F = generate_f()
+    tmp = min_value
     next_generation, function_index = evolve(population, F)
     next_generation = select(population, next_generation, function_index)
+    if tmp == min_value:
+        unused += 1
+    else:
+        unused = 0
     process_recorder.append(min_value)
     return next_generation
 
@@ -168,6 +220,8 @@ def DE(code_seq):
             update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
+        if unused > 1000:
+            break
 
 
 # Press the green button in the gutter to run the script.
