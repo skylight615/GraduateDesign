@@ -269,7 +269,7 @@ if __name__ == '__main__':
     logger.info(f"modified sequence code: {min_vec}")
     logger.info(f"If modified mrna has same structure with origin mrna : {dataset.check_type(code_seq, min_vec)}")
     logger.info(f"The protein in Baidu style is : {p}")
-    plt.plot(range(config["max_gen"]), process_recorder)
+    plt.plot(range(len(process_recorder)), process_recorder)
     plt.show()
     plt.savefig(f"./evo_image/{test_name}.png")
 
