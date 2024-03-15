@@ -17,6 +17,7 @@ CRm = 0.5
 SaDE_p = 0.5
 age = 0
 unused = 0
+dataRecorder = list()
 ns1, ns2, nf1, nf2 = 0, 0, 0, 0
 f_rec = list()
 CR_list = list()
@@ -110,6 +111,8 @@ def evolve(population: list, F: float):
                     buffer.append(new_best)
                 costs = cf.cost(buffer, dataset)
                 for i in range(len(buffer)):
+                    if config["save"] == 1:
+                        dataRecorder.append((buffer[i], costs[i]))
                     if costs[i] < min_value:
                         min_value = costs[i]
                         min_vec = buffer[i]
@@ -191,6 +194,9 @@ def crossover(x, v, index):
 def select(population: list, next_generation: list, function_index: list):
     global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
     next_cost_list = cf.cost(next_generation, dataset)
+    if config["save"] == 1:
+        for i in range(len(next_cost_list)):
+            dataRecorder.append((next_generation[i], next_cost_list[i]))
     res = list()
     for index in range(NP):
         if next_cost_list[index] < min_value:
@@ -221,14 +227,14 @@ def DE(code_seq):
     for i in tqdm(range(config["max_gen"])):
         generation = evolution(generation)
         age = i
-        logger.info(f"min_mfe: {min_value:6.2f}")
+        logger.info(f"echo:{age} min_mfe: {min_value:6.2f}")
         if i != 0 and i % 20 == 0:
             update_CRm()
         if i != 0 and i % 50 == 0:
             update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
-        if unused > 500:
+        if unused > config["stop"]:
             break
 
 
@@ -262,6 +268,8 @@ if __name__ == '__main__':
     NP = config["NP"]
     CR_list = [0.5 for _ in range(NP)]
     DE(code_seq)
+    if config["save"] == 1:
+        np.save(f"./data/data.npy", dataRecorder)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
     logger.info(f"min_mfe: {min_value:6.2f} min seq: {dataset.recover2str(min_vec)}")
