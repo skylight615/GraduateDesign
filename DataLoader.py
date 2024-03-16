@@ -1,5 +1,5 @@
 import random
-
+import pandas as pd
 import yaml
 
 
@@ -8,6 +8,18 @@ class DataLoader:
     def __init__(self):
         with open('testConfig/synonym.yaml', 'r', encoding='utf-8') as f:
             config = yaml.load(f.read(), Loader=yaml.FullLoader)
+        # read the file codon_usage.csv
+        col_names = ['mRNA', 'id', 'freq']
+        data = pd.read_csv('testConfig/codon_usage_freq_table_human.csv', names=col_names, header=None)
+        self.codon_usage = dict()
+        max_freq = dict()
+        for index, row in data.iterrows():
+            if row['id'] not in max_freq:
+                max_freq[row['id']] = row['freq']
+            else:
+                max_freq[row['id']] = max(max_freq[row['id']], row['freq'])
+        for index, row in data.iterrows():
+            self.codon_usage[row['mRNA']] = row['freq'] / max_freq[row['id']]
         # [group_id, 密码子集合]
         self.groups = dict()
         # [index, group_id]
@@ -72,3 +84,9 @@ class DataParser:
             group = dataset.groups[self.p2code[c]]
             seq = seq + group[random.randint(0, len(group)-1)]
         return seq
+
+
+if __name__ == '__main__':
+    loader = DataLoader()
+    print(loader.codon_usage)
+    parser = DataParser()

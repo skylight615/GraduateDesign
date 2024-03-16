@@ -39,7 +39,7 @@ def init_population(init_code: list):
             rd_num = random.randint(0, len(sets) - 1)
             item.append(dataset.str2code[sets[rd_num]])
         population.append(np.array(item))
-    cost_list = cf.cost(population, dataset)
+    cost_list = cf.cost(population, dataset, config["lamda"])
     return population
 
 
@@ -142,7 +142,7 @@ def select(population: list, next_generation: list, function_index: list, index:
     new_generation = generation.copy()
     for i in range(NP):
         new_generation[i][index] = next_generation[i]
-    next_cost_list = cf.cost(new_generation, dataset)
+    next_cost_list = cf.cost(new_generation, dataset, config["lamda"])
     res = list()
     tmp = min_value
     for index in range(NP):
@@ -216,7 +216,7 @@ def weight_eval(w_generation: list, item: list, groups_index: list):
             base = dataset.base[item[n]]
             tem[n] = (tem[n] - base[0]) % base[1] + base[0]
         pop.append(tem)
-    costs = cf.cost(pop, dataset)
+    costs = cf.cost(pop, dataset, config["lamda"])
     tmp = min_value
     for i in range(NP):
         if costs[i] < min_value:
@@ -291,7 +291,6 @@ def DECC_G(code_seq):
     min_vec = np.zeros(len(code_seq))
     generation = init_population(code_seq)
     for _ in tqdm(range(config["outer_loop"])):
-        logger.info(f"outer echo: {_}")
         groups_index = divide_groups(len(code_seq))
         for k in range(sub_num):
             w[:, k] = np.random.normal(loc=0, scale=1, size=NP)
@@ -299,12 +298,12 @@ def DECC_G(code_seq):
             for i in range(len(groups_index[k])):
                 for j in range(NP):
                     generation[j][groups_index[k][i]] = next_generation[j][i]
-        value_list = cf.cost(generation, dataset)
+        value_list = cf.cost(generation, dataset, config["lamda"])
         best, worst, rand = find_candidates(generation, value_list)
         DE_w(groups_index, best, w)
         DE_w(groups_index, worst, w)
         DE_w(groups_index, rand, w)
-        if unused > 1000:
+        if unused > config["stop"]:
             break
 
 
@@ -324,7 +323,7 @@ if __name__ == '__main__':
     process_recorder = list()
     seq = str()
     test_name = str(config["seed"])+"-"+str(config["outer_loop"])+"-"+date
-    handler = logging.FileHandler(f'./log/{test_name}.log')
+    handler = logging.FileHandler(f'./log/DECC-G/{test_name}.log')
     logger.addHandler(handler)
     random.seed(config["seed"])
     if arg.type == "protein":
@@ -337,11 +336,14 @@ if __name__ == '__main__':
     NP = config["NP"]
     CR_list = [0.5 for _ in range(NP)]
     sub_num = math.ceil(len(code_seq)/config["sub_size"])
-    logger.info(f"NP: {NP} outer loop: {config['outer_loop']} inner loop: {config['inner_loop']} sub_num: {sub_num} seed: {config['seed']}")
+    logger.info(f"NP: {NP} outer loop: {config['outer_loop']} inner loop: {config['inner_loop']} "
+                f"sub_num: {sub_num} seed: {config['seed']}")
     DECC_G(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
-    logger.info(f"min_mfe: {min_value:6.2f} min seq: {dataset.recover2str(min_vec)}")
+    logger.info(f"min_cost: {min_value:6.2f} mfe: {cf.mfe_cost(dataset.recover2str(min_vec))}"
+                f" CAI: {cf.CAI_cost(min_vec, dataset)}")
+    logger.info(f"min seq: {dataset.recover2str(min_vec)}")
     logger.info(f"origin sequence code: {code_seq}")
     logger.info(f"modified sequence code: {min_vec}")
     logger.info(f"If modified mrna has same structure with origin mrna : {dataset.check_type(code_seq, min_vec)}")
@@ -349,6 +351,6 @@ if __name__ == '__main__':
     plt.plot(range(len(process_recorder)), process_recorder)
     logger.info(f"calculate {len(process_recorder)} times")
     plt.show()
-    plt.savefig(f"./evo_image/{test_name}.png")
+    plt.savefig(f"./evo_image/DECC-G/{test_name}.png")
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

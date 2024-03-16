@@ -6,3 +6,5 @@ inner_loop: 50  # max inner loop number
 sub_size: 100  # the size of sub population
 y: 1  # the number of pair using to calculate difference
 seed: 2022
+stop: 2000
+lamda: 1

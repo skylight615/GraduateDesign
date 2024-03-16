@@ -1,6 +1,6 @@
 import random
 import RNA
-import time
+import math
 from DataLoader import DataLoader
 import multiprocessing as mp
 
@@ -11,13 +11,48 @@ def mfe_cost(seq):
     return mfe
 
 
-def cost(population: list, loader: DataLoader):
+def cai_cost(item, dataset: DataLoader):
+    res = 0
+    code_len = int(len(item))
+    for i in range(0, code_len):
+        code = dataset.code2str[item[i]]
+        res += math.log2(dataset.codon_usage[code])
+    return res
+
+
+def CAI_cost(item, dataset: DataLoader):
+    res = 1
+    code_len = int(len(item))
+    for i in range(0, code_len):
+        code = dataset.code2str[item[i]]
+        res *= dataset.codon_usage[code]
+    res = pow(res, 1/code_len)
+    return res
+
+
+def cost(population: list, loader: DataLoader, lamda: float):
     # begin = time.time()
     # print(mp.cpu_count())
     pool = mp.Pool(processes=mp.cpu_count())
-    results = pool.map(mfe_cost, [loader.recover2str(vec) for vec in population])
+    str_population = [loader.recover2str(vec) for vec in population]
+    results = pool.map(mfe_cost, str_population)
     pool.close()
     pool.join()
+    if lamda != 0:
+        for i in range(len(results)):
+            results[i] = results[i] - lamda * cai_cost(population[i], loader)
     # end = time.time()
     # print(f"cost time: {end - begin}")
     return results
+
+
+if __name__ == '__main__':
+    loader = DataLoader()
+    seq = "AUGCUGGAUCAGGUGAACAAGCUCAAGUACCCCGAGGUGAGCUUGACCUGA"
+    codes = loader.convert2code(seq)
+    result = cost([codes], loader, 1)
+    mfe = mfe_cost(seq)
+    cai = CAI_cost(codes, loader)
+    print(result)
+    print(mfe)
+    print(cai)
