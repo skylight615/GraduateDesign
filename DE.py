@@ -288,7 +288,6 @@ def find_candidates(generation: list, value_list: list):
 def DECC_G(code_seq):
     global sub_num, min_vec, min_value
     w = np.ones((NP, sub_num))
-    min_vec = np.zeros(len(code_seq))
     generation = init_population(code_seq)
     for _ in tqdm(range(config["outer_loop"])):
         groups_index = divide_groups(len(code_seq))
@@ -331,13 +330,13 @@ if __name__ == '__main__':
     elif arg.type == "mrna":
         seq = arg.input
     code_seq = dataset.convert2code(seq)
-    origin_value = cf.mfe_cost(seq)
-    min_value, min_vec = origin_value, code_seq
+    origin_value = cf.cost([code_seq], dataset, config["lamda"])[0]
+    min_value, min_vec = origin_value, np.array(code_seq)
     NP = config["NP"]
     CR_list = [0.5 for _ in range(NP)]
     sub_num = math.ceil(len(code_seq)/config["sub_size"])
     logger.info(f"NP: {NP} outer loop: {config['outer_loop']} inner loop: {config['inner_loop']} "
-                f"sub_num: {sub_num} seed: {config['seed']}")
+                f"sub_num: {sub_num} seed: {config['seed']} lambda: {config['lamda']}")
     DECC_G(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
@@ -350,7 +349,7 @@ if __name__ == '__main__':
     logger.info(f"The protein in Baidu style is : {p}")
     plt.plot(range(len(process_recorder)), process_recorder)
     logger.info(f"calculate {len(process_recorder)} times")
-    plt.show()
     plt.savefig(f"./evo_image/DECC-G/{test_name}.png")
+    plt.show()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

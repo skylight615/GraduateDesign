@@ -48,7 +48,11 @@ def cost(population: list, loader: DataLoader, lamda: float):
 
 if __name__ == '__main__':
     loader = DataLoader()
-    seq = "AUGCUGGAUCAGGUGAACAAGCUCAAGUACCCCGAGGUGAGCUUGACCUGA"
+    # lambda = 10
+    # [-886.1536694955073]
+    # -899.9000244140625
+    # 0.9848222246527519
+    seq = "AUGCUGGAUCAGGUGAACAAGCUGAAGUACCCCGAGGUGAGCCUGACCUGA"
     codes = loader.convert2code(seq)
     result = cost([codes], loader, 1)
     mfe = mfe_cost(seq)
