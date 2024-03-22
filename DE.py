@@ -13,15 +13,9 @@ from DataLoader import DataLoader, DataParser
 min_vec = 0  # record the vector that has min cost value now
 min_value = 99999  # record the current min value during evolution
 cost_list = list()
-CRm = 0.5
-SaDE_p = 0.5
 age = 0
 unused = 0
 dataRecorder = list()
-ns1, ns2, nf1, nf2 = 0, 0, 0, 0
-f_rec = list()
-CR_list = list()
-CR_rec = list()
 
 
 # init the population, size = NP, and the member is a vector (1,num_parameter).
@@ -41,64 +35,22 @@ def init_population(init_code: list):
     return population
 
 
-def generate_f():
-    global SaDE_p
-    fp = np.random.uniform(0, 1, 1)
-    if fp > SaDE_p:
-        F = np.random.standard_cauchy(1)
-    else:
-        F = np.random.normal(0.5, 0.3, 1)
-    return F
-
-
-def update_SaDE_p():
-    global SaDE_p, ns1, ns2, nf1, nf2, age
-    if (ns2*(ns1+nf1)+ns1*(ns2+nf2)) == 0:
-        SaDE_p = 0.5
-    else:
-        SaDE_p = ns1*(ns2+nf2)/(ns2*(ns1+nf1)+ns1*(ns2+nf2))
-    logger.info(f"echo:{age} ns1: {ns1} ns2: {ns2} nf1: {nf1} nf2: {nf2} SaDE_p: {SaDE_p}")
-    ns1, ns2, nf1, nf2 = 0, 0, 0, 0
-
-
-def update_CRm():
-    global CRm, CR_rec, f_rec
-    if len(CR_rec) == 0:
-        CRm = 0.5
-    else:
-        w_sum = sum(f_rec)
-        w = [i / w_sum for i in f_rec]
-        CRm = sum([w[i] * CR_rec[i] for i in range(len(w))])
-        if CRm < 0:
-            CRm = 0
-        CR_rec.clear()
-        f_rec.clear()
-    logger.info(f"CRm: {CRm}")
-
-
 def evolve(population: list, F: float):
     global min_value, min_vec
     next_generation = list()
-    function_index = list()
     for index in range(NP):
-        function_index.append(1)
         if min_value != cost_list[index]:
             diff = np.zeros(shape=num, dtype=float)
             rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2), replace=False)
             for pair in rand_i:
                 diff = diff + population[pair[0]] - population[pair[1]]
-            # SaDE
-            p = np.random.uniform(0, 1, 1)
-            if p > SaDE_p:
-                diff += min_vec - population[index]
-                function_index[index] = 3
             new_seq = np.floor(population[index] + F * diff)
             for n in range(len(new_seq)):
                 tem = population[index][n]
                 # (id - base) % size + base
                 base = dataset.base[tem]
                 new_seq[n] = (new_seq[n] - base[0]) % base[1] + base[0]
-            next_generation.append(crossover(population[index], new_seq, index))
+            next_generation.append(crossover(population[index], new_seq))
         else:
             # do the GTDE for the best member
             if age % 50 == 0:
@@ -118,7 +70,7 @@ def evolve(population: list, F: float):
                         min_vec = buffer[i]
                         cost_list[index] = min_value
             next_generation.append(min_vec)
-    return next_generation, function_index
+    return next_generation
 
 
 def target_bottleneck(dim: int):
@@ -158,10 +110,9 @@ def construct_vec(bottleneck_dims: list, population: list, index: int):
 def evolution(population: list):
     # do permutation for population[index]
     global min_value, min_vec, unused
-    F = generate_f()
     tmp = min_value
-    next_generation, function_index = evolve(population, F)
-    next_generation = select(population, next_generation, function_index)
+    next_generation = evolve(population, F)
+    next_generation = select(population, next_generation)
     if tmp == min_value:
         unused += 1
     else:
@@ -171,15 +122,9 @@ def evolution(population: list):
 
 
 # generate the u_i using v_i and x_i
-def crossover(x, v, index):
-    global CRm, CR_list
+def crossover(x, v):
     u_j = np.zeros(num)
     r = range(num)
-    if age % 5 == 0:
-        CR = np.random.normal(CRm, 0.1, 1)
-        CR_list[index] = CR
-    else:
-        CR = CR_list[index]
     for j in r:
         rand = np.random.uniform(0, 1, 1)
         save_index = np.random.choice(r, size=1)
@@ -191,8 +136,8 @@ def crossover(x, v, index):
 
 
 # select between u_i and x_i into next generation, and criterion is cost function
-def select(population: list, next_generation: list, function_index: list):
-    global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
+def select(population: list, next_generation: list):
+    global min_value, min_vec, cost_list
     next_cost_list = cf.cost(next_generation, dataset, config["lambda"])
     if config["save"] == 1:
         for i in range(len(next_cost_list)):
@@ -204,20 +149,9 @@ def select(population: list, next_generation: list, function_index: list):
             min_vec = next_generation[index]
         if cost_list[index] > next_cost_list[index]:
             res.append(next_generation[index])
-            CR_rec.append(CR_list[index])
-            f_rec.append(cost_list[index] - next_cost_list[index])
-            # SaDE
-            if function_index[index] == 1:
-                ns1 += 1
-            elif function_index[index] == 3:
-                ns2 += 1
             cost_list[index] = next_cost_list[index]
         else:
             res.append(population[index])
-            if function_index[index] == 1:
-                nf1 += 1
-            elif function_index[index] == 3:
-                nf2 += 1
     return res
 
 
@@ -228,10 +162,6 @@ def DE(code_seq):
         generation = evolution(generation)
         age = i
         logger.info(f"echo:{age} min_mfe: {min_value:6.2f}")
-        if i != 0 and i % 20 == 0:
-            update_CRm()
-        if i != 0 and i % 50 == 0:
-            update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
         if unused > config["stop"]:
@@ -254,7 +184,7 @@ if __name__ == '__main__':
     process_recorder = list()
     seq = str()
     test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
-    handler = logging.FileHandler(f'./log/GTDE/{test_name}.log')
+    handler = logging.FileHandler(f'./log/GTDE-O/{test_name}.log')
     logger.addHandler(handler)
     random.seed(config["seed"])
     if arg.type == "protein":
@@ -265,7 +195,7 @@ if __name__ == '__main__':
     num = len(code_seq)
     origin_value = cf.cost([code_seq], dataset, config["lambda"])[0]
     min_value, min_vec = origin_value, code_seq
-    NP = config["NP"]
+    F, NP, CR = config["F"], config["NP"], config["CR"]
     CR_list = [0.5 for _ in range(NP)]
     logger.info(f"NP: {NP} stop: {config['stop']} lambda: {config['lambda']}")
     DE(code_seq)
@@ -280,7 +210,7 @@ if __name__ == '__main__':
     logger.info(f"If modified mrna has same structure with origin mrna : {dataset.check_type(code_seq, min_vec)}")
     logger.info(f"The protein in Baidu style is : {p}")
     plt.plot(range(len(process_recorder)), process_recorder)
-    plt.savefig(f"./evo_image/GTDE/{test_name}.png")
+    plt.savefig(f"./evo_image/GTDE-O/{test_name}.png")
     plt.show()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

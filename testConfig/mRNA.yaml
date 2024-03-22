@@ -1,6 +1,6 @@
 NP: 40  # size of population
-#CR: 0.1  # the threshold of random choose in crossover
-#F: 0.9   the constant in permutation, now using the adaptive one
+CR: 0.1  # the threshold of random choose in crossover
+F: 0.9   # the constant in permutation, now using the adaptive one
 max_gen: 10000  # max loop number
 NGT: 400
 P_m: 0.01
