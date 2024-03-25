@@ -256,7 +256,7 @@ if __name__ == '__main__':
     test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
     handler = logging.FileHandler(f'./log/GTDE/{test_name}.log')
     logger.addHandler(handler)
-    random.seed(config["seed"])
+    # random.seed(config["seed"])
     if arg.type == "protein":
         seq = parser.generate_random_seq(arg.input, dataset)
     elif arg.type == "mrna":
