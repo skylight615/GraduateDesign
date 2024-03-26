@@ -281,6 +281,6 @@ if __name__ == '__main__':
     logger.info(f"The protein in Baidu style is : {p}")
     plt.plot(range(len(process_recorder)), process_recorder)
     plt.savefig(f"./evo_image/GTDE/{test_name}.png")
-    plt.show()
+    # plt.show()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
