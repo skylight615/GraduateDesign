@@ -324,7 +324,7 @@ if __name__ == '__main__':
     test_name = str(config["seed"])+"-"+str(config["outer_loop"])+"-"+date
     handler = logging.FileHandler(f'./log/DECC-G/{test_name}.log')
     logger.addHandler(handler)
-    random.seed(config["seed"])
+    # random.seed(config["seed"])
     if arg.type == "protein":
         seq = parser.generate_random_seq(arg.input, dataset)
     elif arg.type == "mrna":
@@ -336,7 +336,7 @@ if __name__ == '__main__':
     CR_list = [0.5 for _ in range(NP)]
     sub_num = math.ceil(len(code_seq)/config["sub_size"])
     logger.info(f"NP: {NP} outer loop: {config['outer_loop']} inner loop: {config['inner_loop']} "
-                f"sub_num: {sub_num} seed: {config['seed']} lambda: {config['lamda']}")
+                f"sub_num: {sub_num} lambda: {config['lamda']}")
     DECC_G(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
