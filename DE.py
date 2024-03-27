@@ -41,7 +41,8 @@ def evolve(population: list, F: float):
     for index in range(NP):
         if min_value != cost_list[index]:
             diff = np.zeros(shape=num, dtype=float)
-            rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2), replace=False)
+            rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2),
+                                      replace=False)
             for pair in rand_i:
                 diff = diff + population[pair[0]] - population[pair[1]]
             new_seq = np.floor(population[index] + F * diff)
@@ -53,22 +54,21 @@ def evolve(population: list, F: float):
             next_generation.append(crossover(population[index], new_seq))
         else:
             # do the GTDE for the best member
-            if age % 50 == 0:
-                buffer = list()
-                for _ in range(config["NGT"]):
-                    bottleneck_dims = list()
-                    while len(bottleneck_dims) == 0:
-                        bottleneck_dims = target_bottleneck(len(population[0]))
-                    new_best = construct_vec(bottleneck_dims, population, index)
-                    buffer.append(new_best)
-                costs = cf.cost(buffer, dataset, config["lambda"])
-                for i in range(len(buffer)):
-                    if config["save"] == 1:
-                        dataRecorder.append((buffer[i], costs[i]))
-                    if costs[i] < min_value:
-                        min_value = costs[i]
-                        min_vec = buffer[i]
-                        cost_list[index] = min_value
+            buffer = list()
+            for _ in range(config["NGT"]):
+                bottleneck_dims = list()
+                while len(bottleneck_dims) == 0:
+                    bottleneck_dims = target_bottleneck(len(population[0]))
+                new_best = construct_vec(bottleneck_dims, population, index)
+                buffer.append(new_best)
+            costs = cf.cost(buffer, dataset, config["lambda"])
+            for i in range(len(buffer)):
+                if config["save"] == 1:
+                    dataRecorder.append((buffer[i], costs[i]))
+                if costs[i] < min_value:
+                    min_value = costs[i]
+                    min_vec = buffer[i]
+                    cost_list[index] = min_value
             next_generation.append(min_vec)
     return next_generation
 
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     parser = DataParser()
     process_recorder = list()
     seq = str()
-    test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
+    test_name = str(config["seed"]) + "-" + str(config["max_gen"]) + "-" + date
     handler = logging.FileHandler(f'./log/GTDE-O/{test_name}.log')
     logger.addHandler(handler)
     # random.seed(config["seed"])
