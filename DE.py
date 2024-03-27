@@ -186,7 +186,7 @@ if __name__ == '__main__':
     test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
     handler = logging.FileHandler(f'./log/GTDE-O/{test_name}.log')
     logger.addHandler(handler)
-    random.seed(config["seed"])
+    # random.seed(config["seed"])
     if arg.type == "protein":
         seq = parser.generate_random_seq(arg.input, dataset)
     elif arg.type == "mrna":
@@ -209,8 +209,8 @@ if __name__ == '__main__':
     logger.info(f"modified sequence code: {min_vec}")
     logger.info(f"If modified mrna has same structure with origin mrna : {dataset.check_type(code_seq, min_vec)}")
     logger.info(f"The protein in Baidu style is : {p}")
-    plt.plot(range(len(process_recorder)), process_recorder)
-    plt.savefig(f"./evo_image/GTDE-O/{test_name}.png")
-    plt.show()
+    # plt.plot(range(len(process_recorder)), process_recorder)
+    # plt.savefig(f"./evo_image/GTDE-O/{test_name}.png")
+    # plt.show()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
