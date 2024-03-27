@@ -101,7 +101,7 @@ def evolve(population: list, F: float):
             next_generation.append(crossover(population[index], new_seq, index))
         else:
             # do the GTDE for the best member
-            if age % 50 == 0:
+            if age % 25 == 0:
                 buffer = list()
                 for _ in range(config["NGT"]):
                     bottleneck_dims = list()
