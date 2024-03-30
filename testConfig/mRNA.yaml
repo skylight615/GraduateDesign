@@ -8,4 +8,4 @@ y: 1  # the number of pair using to calculate difference
 seed: 2200
 save: 0
 lambda: 1
-stop: 3000 # the number of generation that the best fitness doesn't change, then stop
+stop: 1000 # the number of generation that the best fitness doesn't change, then stop
