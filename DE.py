@@ -196,7 +196,7 @@ if __name__ == '__main__':
     process_recorder = list()
     seq = str()
     test_name = str(config["seed"])+"-"+str(config["max_gen"])+"-"+date
-    handler = logging.FileHandler(f'./log/{test_name}.log')
+    handler = logging.FileHandler(f'./log/SaNSDE/{test_name}.log')
     logger.addHandler(handler)
     random.seed(config["seed"])
     if arg.type == "protein":
