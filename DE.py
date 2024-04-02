@@ -16,6 +16,7 @@ cost_list = list()
 CRm = 0.5
 SaDE_p = 0.5
 age = 0
+unused = 0
 ns1, ns2, nf1, nf2 = 0, 0, 0, 0
 f_rec = list()
 CR_list = list()
@@ -35,7 +36,7 @@ def init_population(init_code: list):
             rd_num = random.randint(0, len(sets) - 1)
             item.append(dataset.str2code[sets[rd_num]])
         population.append(np.array(item))
-    cost_list = cf.cost(population, dataset)
+    cost_list = cf.cost(population, dataset, config["lambda"])
     return population
 
 
@@ -101,9 +102,15 @@ def evolve(population: list, F: float):
 # generate the v_i using x_i. The difference is calculated by random, x_i also a random member
 def evolution(population: list):
     # do permutation for population[index]
+    global min_value, min_vec, unused
     F = generate_f()
+    tmp = min_value
     next_generation, function_index = evolve(population, F)
     next_generation = select(population, next_generation, function_index)
+    if tmp == min_value:
+        unused += 1
+    else:
+        unused = 0
     process_recorder.append(min_value)
     return next_generation
 
@@ -131,7 +138,7 @@ def crossover(x, v, index):
 # select between u_i and x_i into next generation, and criterion is cost function
 def select(population: list, next_generation: list, function_index: list):
     global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
-    next_cost_list = cf.cost(next_generation, dataset)
+    next_cost_list = cf.cost(next_generation, dataset, config["lambda"])
     res = list()
     for index in range(NP):
         if next_cost_list[index] < min_value:
@@ -162,12 +169,15 @@ def DE(code_seq):
     for i in tqdm(range(config["max_gen"])):
         generation = evolution(generation)
         age = i
+        logger.info(f"echo:{age} min_mfe: {min_value:6.2f}")
         if i != 0 and i % 20 == 0:
             update_CRm()
         if i != 0 and i % 50 == 0:
             update_SaDE_p()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
+        if unused > config["stop"]:
+            break
 
 
 # Press the green button in the gutter to run the script.
@@ -195,20 +205,21 @@ if __name__ == '__main__':
         seq = arg.input
     code_seq = dataset.convert2code(seq)
     num = len(code_seq)
-    origin_value = cf.mfe_cost(seq)
+    origin_value = cf.cost([code_seq], dataset, config["lambda"])[0]
     min_value, min_vec = origin_value, code_seq
     NP = config["NP"]
     CR_list = [0.5 for _ in range(NP)]
     DE(code_seq)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
-    logger.info(f"min_mfe: {min_value:6.2f} min seq: {dataset.recover2str(min_vec)}")
+    logger.info(f"min_cost: {min_value:6.2f} min_mfe:{cf.mfe_cost(dataset.recover2str(min_vec))}"
+                f"min_cai: {cf.CAI_cost(min_vec, dataset)} min seq: {dataset.recover2str(min_vec)}")
     logger.info(f"origin sequence code: {code_seq}")
     logger.info(f"modified sequence code: {min_vec}")
     logger.info(f"If modified mrna has same structure with origin mrna : {dataset.check_type(code_seq, min_vec)}")
     logger.info(f"The protein in Baidu style is : {p}")
-    plt.plot(range(config["max_gen"]), process_recorder)
-    plt.show()
-    plt.savefig(f"./evo_image/{test_name}.png")
+    # plt.plot(range(config["max_gen"]), process_recorder)
+    # plt.show()
+    # plt.savefig(f"./evo_image/{test_name}.png")
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
