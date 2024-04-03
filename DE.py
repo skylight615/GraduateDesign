@@ -15,6 +15,7 @@ min_value = 99999  # record the current min value during evolution
 cost_list = list()
 CRm = 0.5
 SaDE_p = 0.5
+GT_p = 0.5
 age = 0
 unused = 0
 dataRecorder = list()
@@ -22,6 +23,7 @@ ns1, ns2, nf1, nf2 = 0, 0, 0, 0
 f_rec = list()
 CR_list = list()
 CR_rec = list()
+GT_rec = list()
 
 
 # init the population, size = NP, and the member is a vector (1,num_parameter).
@@ -76,6 +78,18 @@ def update_CRm():
     logger.info(f"CRm: {CRm}")
 
 
+def update_GT(p_list: list, success: list):
+    global GT_p, GT_rec
+    sum_diff = sum(success)
+    w = [i / sum_diff for i in success]
+    if len(p_list) == 0:
+        GT_p = 0.5
+    else:
+        GT_p = sum([w[i] * p_list[i] for i in range(len(w))])
+    GT_rec.clear()
+    logger.info(f"GT_p: {GT_p}")
+
+
 def evolve(population: list, F: float):
     global min_value, min_vec
     next_generation = list()
@@ -110,25 +124,33 @@ def evolve(population: list, F: float):
                 new_best = construct_vec(bottleneck_dims, population, index)
                 buffer.append(new_best)
             costs = cf.cost(buffer, dataset, config["lambda"])
+            diffs = [costs[i] - min_value for i in range(len(buffer))]
+            p_list, success = list(), list()
             for i in range(len(buffer)):
+                if diffs[i] < 0:
+                    success.append(diffs[i])
+                    p_list.append(GT_rec[i])
                 if config["save"] == 1:
                     dataRecorder.append((buffer[i], costs[i]))
                 if costs[i] < min_value:
                     min_value = costs[i]
                     min_vec = buffer[i]
                     cost_list[index] = min_value
+            update_GT(p_list, success)
             next_generation.append(min_vec)
     return next_generation, function_index
 
 
 def target_bottleneck(dim: int):
+    global GT_p, GT_rec
     res = []
+    p = np.random.normal(GT_p, 0.01, 1)
     for i in range(dim):
         # p = Gaussian(0.01, 0.01)
-        p = np.random.normal(0.01, 0.01, 1)
         rand = np.random.uniform(0, 1)
         if rand < p:
             res.append(i)
+    GT_rec.append(p)
     return res
 
 
