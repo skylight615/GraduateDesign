@@ -83,7 +83,7 @@ def update_GT(p_list: list, success: list):
     sum_diff = sum(success)
     w = [i / sum_diff for i in success]
     if len(p_list) == 0:
-        GT_p = 0.5
+        GT_p = 0.05
     else:
         GT_p = sum([w[i] * p_list[i] for i in range(len(w))])
     GT_rec.clear()
