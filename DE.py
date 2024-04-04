@@ -83,7 +83,7 @@ def update_GT(p_list: list, success: list):
     sum_diff = sum(success)
     w = [i / sum_diff for i in success]
     if len(p_list) == 0:
-        GT_p = 0.05
+        GT_p = 0.5
     else:
         GT_p = sum([w[i] * p_list[i] for i in range(len(w))])
     GT_rec.clear()
@@ -136,7 +136,8 @@ def evolve(population: list, F: float):
                     min_value = costs[i]
                     min_vec = buffer[i]
                     cost_list[index] = min_value
-            update_GT(p_list, success)
+            if age % 10 == 0:
+                update_GT(p_list, success)
             next_generation.append(min_vec)
     return next_generation, function_index
 
@@ -144,7 +145,7 @@ def evolve(population: list, F: float):
 def target_bottleneck(dim: int):
     global GT_p, GT_rec
     res = []
-    p = np.random.normal(GT_p, 0.01, 1)
+    p = np.random.normal(GT_p, 0.1, 1)
     for i in range(dim):
         # p = Gaussian(0.01, 0.01)
         rand = np.random.uniform(0, 1)
