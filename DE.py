@@ -79,20 +79,21 @@ def update_CRm():
     logger.info(f"CRm: {CRm}")
 
 
-def update_GT(p_list: list, success: list):
-    global GT_p, GT_rec
+def update_GT():
+    global GT_p, p_list, success
     sum_diff = sum(success)
     w = [i / sum_diff for i in success]
     if len(p_list) == 0:
         GT_p = 0.5
     else:
         GT_p = sum([w[i] * p_list[i] for i in range(len(w))])
-    GT_rec.clear()
+    p_list.clear()
+    success.clear()
     logger.info(f"GT_p: {GT_p}")
 
 
 def evolve(population: list, F: float):
-    global min_value, min_vec, p_list, success
+    global min_value, min_vec, GT_rec, p_list, success
     next_generation = list()
     function_index = list()
     for index in range(NP):
@@ -136,10 +137,7 @@ def evolve(population: list, F: float):
                     min_value = costs[i]
                     min_vec = buffer[i]
                     cost_list[index] = min_value
-            if age % 10 == 0:
-                update_GT(p_list, success)
-                p_list.clear()
-                success.clear()
+            GT_rec.clear()
             next_generation.append(min_vec)
     return next_generation, function_index
 
@@ -253,10 +251,12 @@ def DE(code_seq):
         generation = evolution(generation)
         age = i
         logger.info(f"echo:{age} min_mfe: {min_value:6.2f}")
-        if i != 0 and i % 20 == 0:
+        if i != 0 and i % 10 == 0:
             update_CRm()
         if i != 0 and i % 50 == 0:
             update_SaDE_p()
+        if i != 0 and i % 10 == 0:
+            update_GT()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
         if unused > config["stop"]:
