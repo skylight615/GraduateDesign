@@ -16,6 +16,7 @@ cost_list = list()
 CRm = 0.5
 SaDE_p = 0.5
 GT_p = 0.5
+p_list, success = list(), list()
 age = 0
 unused = 0
 dataRecorder = list()
@@ -91,7 +92,7 @@ def update_GT(p_list: list, success: list):
 
 
 def evolve(population: list, F: float):
-    global min_value, min_vec
+    global min_value, min_vec, p_list, success
     next_generation = list()
     function_index = list()
     for index in range(NP):
@@ -125,7 +126,6 @@ def evolve(population: list, F: float):
                 buffer.append(new_best)
             costs = cf.cost(buffer, dataset, config["lambda"])
             diffs = [costs[i] - min_value for i in range(len(buffer))]
-            p_list, success = list(), list()
             for i in range(len(buffer)):
                 if diffs[i] < 0:
                     success.append(diffs[i])
@@ -138,6 +138,8 @@ def evolve(population: list, F: float):
                     cost_list[index] = min_value
             if age % 10 == 0:
                 update_GT(p_list, success)
+                p_list.clear()
+                success.clear()
             next_generation.append(min_vec)
     return next_generation, function_index
 
