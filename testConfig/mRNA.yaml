@@ -8,4 +8,4 @@ y: 1  # the number of pair using to calculate difference
 k: 5  # the number of item using GT mutation
 seed: 2200
 lambda: 1
-stop: 100 # the number of generation that the best fitness doesn't change, then stop
+stop: 1000 # the number of generation that the best fitness doesn't change, then stop
