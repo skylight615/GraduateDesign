@@ -42,7 +42,7 @@ def init_population(init_code: list):
             item.append(dataset.str2code[sets[rd_num]])
         population.append(np.array(item))
     cost_list = cf.cost(population, dataset, config["lambda"])
-    candidates = np.argpartition(cost_list, -5)[-5:]
+    candidates = np.argpartition(cost_list, -config["k"])[-config["k"]:]
     return population
 
 
@@ -98,9 +98,9 @@ def evolve(population: list, F: float):
     global min_value, min_vec, GT_rec, p_list, success
     next_generation = list()
     function_index = list()
+    GT_target = np.random.choice(candidates, size=1)
     for index in range(NP):
         function_index.append(1)
-        GT_target = np.random.choice(candidates, size=1)
         if GT_target != index:
             diff = np.zeros(shape=num, dtype=float)
             rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2),
@@ -243,7 +243,7 @@ def select(population: list, next_generation: list, function_index: list):
                 nf1 += 1
             elif function_index[index] == 3:
                 nf2 += 1
-    candidates = np.argpartition(cost_list, -5)[-5:]
+    candidates = np.argpartition(cost_list, -config["k"])[-config["k"]:]
     return res
 
 
