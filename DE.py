@@ -85,8 +85,8 @@ def update_GT():
     global GT_p, p_list, success
     sum_diff = sum(success)
     w = [i / sum_diff for i in success]
-    if GT_p <= 0.01:
-        GT_p = 0.1
+    if GT_p <= 0.01 or len(p_list) == 0:
+        GT_p = 0.05
     else:
         GT_p = sum([w[i] * p_list[i] for i in range(len(w))])
     p_list.clear()
@@ -123,7 +123,15 @@ def evolve(population: list, F: float):
             # do the GTDE for the best member
             buffer = list()
             ss = cf.get_structure(dataset.recover2str(population[index]))
-            unpaired = [i for i in range(len(ss)) if ss[i] == '.']
+            unpaired = list()
+            for i in range(0, len(ss), 3):
+                score = 0
+                for j in range(3):
+                    if ss[i + j] == '.':
+                        score += 1
+                rand_num = np.random.uniform(0, 1, 1)
+                if rand_num <= score/3:
+                    unpaired.append(i//3)
             for _ in range(config["NGT"]):
                 bottleneck_dims = target_bottleneck(unpaired)
                 if len(bottleneck_dims) == 0:
