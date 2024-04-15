@@ -16,6 +16,7 @@ cost_list = list()
 CRm = 0.5
 SaDE_p = 0.5
 GT_p = 0.5
+candidates = list()
 p_list, success = list(), list()
 age = 0
 unused = 0
@@ -30,7 +31,7 @@ GT_rec = list()
 # init the population, size = NP, and the member is a vector (1,num_parameter).
 # The value in vector should in the range of IPR.
 def init_population(init_code: list):
-    global cost_list
+    global cost_list, candidates
     population = list()
     for n in range(NP):
         item = list()
@@ -41,6 +42,7 @@ def init_population(init_code: list):
             item.append(dataset.str2code[sets[rd_num]])
         population.append(np.array(item))
     cost_list = cf.cost(population, dataset, config["lambda"])
+    candidates = np.argpartition(cost_list, -5)[-5:]
     return population
 
 
@@ -83,8 +85,8 @@ def update_GT():
     global GT_p, p_list, success
     sum_diff = sum(success)
     w = [i / sum_diff for i in success]
-    if len(p_list) == 0:
-        GT_p = 0.5
+    if GT_p <= 0.01:
+        GT_p = 0.1
     else:
         GT_p = sum([w[i] * p_list[i] for i in range(len(w))])
     p_list.clear()
@@ -98,7 +100,8 @@ def evolve(population: list, F: float):
     function_index = list()
     for index in range(NP):
         function_index.append(1)
-        if min_value != cost_list[index]:
+        GT_target = np.random.choice(candidates, size=1)
+        if GT_target != index:
             diff = np.zeros(shape=num, dtype=float)
             rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2),
                                       replace=False)
@@ -119,34 +122,36 @@ def evolve(population: list, F: float):
         else:
             # do the GTDE for the best member
             buffer = list()
+            ss = cf.get_structure(dataset.recover2str(population[index]))
+            unpaired = [i for i in range(len(ss)) if ss[i] == '.']
             for _ in range(config["NGT"]):
-                bottleneck_dims = list()
-                while len(bottleneck_dims) == 0:
-                    bottleneck_dims = target_bottleneck(len(population[0]))
-                new_best = construct_vec(bottleneck_dims, population, index)
-                buffer.append(new_best)
+                bottleneck_dims = target_bottleneck(unpaired)
+                if len(bottleneck_dims) == 0:
+                    bottleneck_dims = [np.random.randint(0, len(population[0]))]
+                new_item = construct_vec(bottleneck_dims, population, index)
+                buffer.append(new_item)
             costs = cf.cost(buffer, dataset, config["lambda"])
-            diffs = [costs[i] - min_value for i in range(len(buffer))]
+            diffs = [costs[i] - cost_list[index] for i in range(len(buffer))]
+            tmp = population[index].copy()
             for i in range(len(buffer)):
                 if diffs[i] < 0:
                     success.append(diffs[i])
                     p_list.append(GT_rec[i])
-                if config["save"] == 1:
-                    dataRecorder.append((buffer[i], costs[i]))
-                if costs[i] < min_value:
-                    min_value = costs[i]
-                    min_vec = buffer[i]
-                    cost_list[index] = min_value
+                if costs[i] < cost_list[index]:
+                    cost_list[index] = costs[i]
+                    tmp = buffer[i]
             GT_rec.clear()
-            next_generation.append(min_vec)
+            next_generation.append(tmp)
     return next_generation, function_index
 
 
-def target_bottleneck(dim: int):
+def target_bottleneck(unpaired: list):
     global GT_p, GT_rec
     res = []
-    p = np.random.normal(GT_p, 0.1, 1)
-    for i in range(dim):
+    p = 0
+    while p <= 0:
+        p = np.random.normal(GT_p, 0.1, 1)
+    for i in unpaired:
         # p = Gaussian(0.01, 0.01)
         rand = np.random.uniform(0, 1)
         if rand < p:
@@ -159,7 +164,7 @@ def construct_vec(bottleneck_dims: list, population: list, index: int):
     F_c = np.random.normal(0.5, 0.1, 1)
     item1_id, item2_id = np.random.choice(range(len(population)), size=2, replace=False)
     item1, item2 = population[item1_id], population[item2_id]
-    new_best = min_vec.copy()
+    new_item = population[index].copy()
     for i in bottleneck_dims:
         rand = np.random.uniform(0, 1)
         if rand < config["P_m"]:
@@ -169,12 +174,12 @@ def construct_vec(bottleneck_dims: list, population: list, index: int):
                 rand_item = population[rand_item_id]
                 if rand_item_id != item1_id and rand_item_id != item2_id:
                     break
-            new_best[i] = np.floor(min_vec[i] + F_c * (item1[i] - rand_item[i]))
+            new_item[i] = np.floor(new_item[i] + F_c * (item1[i] - rand_item[i]))
         else:
-            new_best[i] = np.floor(min_vec[i] + F_c * (item1[i] - item2[i]))
+            new_item[i] = np.floor(new_item[i] + F_c * (item1[i] - item2[i]))
         base = dataset.base[population[index][i]]
-        new_best[i] = (new_best[i] - base[0]) % base[1] + base[0]
-    return new_best
+        new_item[i] = (new_item[i] - base[0]) % base[1] + base[0]
+    return new_item
 
 
 # generate the v_i using x_i. The difference is calculated by random, x_i also a random member
@@ -215,11 +220,8 @@ def crossover(x, v, index):
 
 # select between u_i and x_i into next generation, and criterion is cost function
 def select(population: list, next_generation: list, function_index: list):
-    global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
+    global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec, candidates
     next_cost_list = cf.cost(next_generation, dataset, config["lambda"])
-    if config["save"] == 1:
-        for i in range(len(next_cost_list)):
-            dataRecorder.append((next_generation[i], next_cost_list[i]))
     res = list()
     for index in range(NP):
         if next_cost_list[index] < min_value:
@@ -241,6 +243,7 @@ def select(population: list, next_generation: list, function_index: list):
                 nf1 += 1
             elif function_index[index] == 3:
                 nf2 += 1
+    candidates = np.argpartition(cost_list, -5)[-5:]
     return res
 
 
@@ -294,8 +297,6 @@ if __name__ == '__main__':
     CR_list = [0.5 for _ in range(NP)]
     logger.info(f"NP: {NP} stop: {config['stop']} lambda: {config['lambda']}")
     DE(code_seq)
-    if config["save"] == 1:
-        np.save(f"./data/data.npy", dataRecorder)
     p = parser.get_protein(code_seq, dataset)
     logger.info(f"origin sequence mfe: {origin_value:6.2f}")
     logger.info(f"min_cost: {min_value:6.2f} min_mfe:{cf.mfe_cost(dataset.recover2str(min_vec))}"

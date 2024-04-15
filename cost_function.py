@@ -11,6 +11,12 @@ def mfe_cost(seq):
     return mfe
 
 
+def get_structure(seq):
+    fc = RNA.fold_compound(seq)
+    (ss, mfe) = fc.mfe()
+    return ss
+
+
 def cai_cost(item, dataset: DataLoader):
     res = 0
     code_len = int(len(item))
