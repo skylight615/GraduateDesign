@@ -125,12 +125,12 @@ def evolve(population: list, F: float):
             ss = cf.get_structure(dataset.recover2str(population[index]))
             unpaired = list()
             for i in range(0, len(ss), 3):
-                score = 0
+                score = 4
                 for j in range(3):
                     if ss[i + j] == '.':
-                        score += 1
+                        score -= 1
                 rand_num = np.random.uniform(0, 1, 1)
-                if rand_num <= score/3:
+                if rand_num <= score/4:
                     unpaired.append(i//3)
             for _ in range(config["NGT"]):
                 bottleneck_dims = target_bottleneck(unpaired)
