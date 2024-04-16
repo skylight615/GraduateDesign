@@ -122,18 +122,8 @@ def evolve(population: list, F: float):
         else:
             # do the GTDE for the best member
             buffer = list()
-            ss = cf.get_structure(dataset.recover2str(population[index]))
-            unpaired = list()
-            for i in range(0, len(ss), 3):
-                score = 4
-                for j in range(3):
-                    if ss[i + j] == '.':
-                        score -= 1
-                rand_num = np.random.uniform(0, 1, 1)
-                if rand_num <= score/4:
-                    unpaired.append(i//3)
             for _ in range(config["NGT"]):
-                bottleneck_dims = target_bottleneck(unpaired)
+                bottleneck_dims = target_bottleneck(len(population[0]))
                 if len(bottleneck_dims) == 0:
                     bottleneck_dims = [np.random.randint(0, len(population[0]))]
                 new_item = construct_vec(bottleneck_dims, population, index)
@@ -153,13 +143,13 @@ def evolve(population: list, F: float):
     return next_generation, function_index
 
 
-def target_bottleneck(unpaired: list):
+def target_bottleneck(dim: int):
     global GT_p, GT_rec
     res = []
     p = 0
     while p <= 0:
         p = np.random.normal(GT_p, 0.1, 1)
-    for i in unpaired:
+    for i in range(dim):
         # p = Gaussian(0.01, 0.01)
         rand = np.random.uniform(0, 1)
         if rand < p:
