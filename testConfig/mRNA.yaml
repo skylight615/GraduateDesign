@@ -5,7 +5,7 @@ max_gen: 20000  # max loop number
 NGT: 400
 P_m: 0.03
 y: 1  # the number of pair using to calculate difference
-k: 3  # the number of item using GT mutation
+k: 1  # the number of item using GT mutation
 seed: 2200
 lambda: 1
 stop: 2000 # the number of generation that the best fitness doesn't change, then stop
