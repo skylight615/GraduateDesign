@@ -147,7 +147,7 @@ def target_bottleneck(dim: int):
     global GT_p, GT_rec
     res = []
     p = 0
-    while p <= 0:
+    while p <= 0 or p >= 1:
         p = np.random.normal(GT_p, 0.1, 1)
     for i in range(dim):
         # p = Gaussian(0.01, 0.01)
@@ -256,7 +256,7 @@ def DE(code_seq):
             update_CRm()
         if i != 0 and i % 50 == 0:
             update_SaDE_p()
-        if i != 0 and i % 10 == 0:
+        if i != 0 and i % 50 == 0:
             update_GT()
         if i % 100 == 0:
             logger.info(f"now loop is to {i}")
