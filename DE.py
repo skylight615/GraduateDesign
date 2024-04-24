@@ -16,7 +16,6 @@ cost_list = list()
 CRm = 0.5
 SaDE_p = 0.5
 GT_p = 0.5
-candidates = list()
 p_list, success = list(), list()
 age = 0
 unused = 0
@@ -42,7 +41,6 @@ def init_population(init_code: list):
             item.append(dataset.str2code[sets[rd_num]])
         population.append(np.array(item))
     cost_list = cf.cost(population, dataset, config["lambda"])
-    candidates = np.argpartition(cost_list, -config["k"])[-config["k"]:]
     return population
 
 
@@ -69,7 +67,7 @@ def update_SaDE_p():
 def update_CRm():
     global CRm, CR_rec, f_rec
     if len(CR_rec) == 0:
-        CRm = 0.5
+        CRm = 0.1
     else:
         w_sum = sum(f_rec)
         w = [i / w_sum for i in f_rec]
@@ -98,10 +96,9 @@ def evolve(population: list, F: float):
     global min_value, min_vec, GT_rec, p_list, success
     next_generation = list()
     function_index = list()
-    GT_target = np.random.choice(candidates, size=1)
     for index in range(NP):
         function_index.append(1)
-        if GT_target != index:
+        if min_value != cost_list[index]:
             diff = np.zeros(shape=num, dtype=float)
             rand_i = np.random.choice(list(range(0, index)) + list(range(index, NP)), size=(config["y"], 2),
                                       replace=False)
@@ -167,11 +164,12 @@ def construct_vec(bottleneck_dims: list, population: list, index: int):
         rand = np.random.uniform(0, 1)
         if rand < config["P_m"]:
             # rand_item != item1 and item2
-            while True:
-                rand_item_id = np.random.choice(range(len(population)))
-                rand_item = population[rand_item_id]
-                if rand_item_id != item1_id and rand_item_id != item2_id:
-                    break
+            rand_item = list()
+            for code in code_seq:
+                group = dataset.code2group[code]
+                sets = dataset.groups[group]
+                rd_num = random.randint(0, len(sets) - 1)
+                rand_item.append(dataset.str2code[sets[rd_num]])
             new_item[i] = np.floor(new_item[i] + F_c * (item1[i] - rand_item[i]))
         else:
             new_item[i] = np.floor(new_item[i] + F_c * (item1[i] - item2[i]))
@@ -218,7 +216,7 @@ def crossover(x, v, index):
 
 # select between u_i and x_i into next generation, and criterion is cost function
 def select(population: list, next_generation: list, function_index: list):
-    global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec, candidates
+    global min_value, min_vec, cost_list, ns1, ns2, nf1, nf2, f_rec, CR_rec
     next_cost_list = cf.cost(next_generation, dataset, config["lambda"])
     res = list()
     for index in range(NP):
@@ -241,7 +239,6 @@ def select(population: list, next_generation: list, function_index: list):
                 nf1 += 1
             elif function_index[index] == 3:
                 nf2 += 1
-    candidates = np.argpartition(cost_list, -config["k"])[-config["k"]:]
     return res
 
 
