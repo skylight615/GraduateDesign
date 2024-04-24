@@ -125,18 +125,20 @@ def evolve(population: list, F: float):
                     bottleneck_dims = [np.random.randint(0, len(population[0]))]
                 new_item = construct_vec(bottleneck_dims, population, index)
                 buffer.append(new_item)
-            costs = cf.cost(buffer, dataset, config["lambda"])
-            diffs = [costs[i] - cost_list[index] for i in range(len(buffer))]
-            tmp = population[index].copy()
-            for i in range(len(buffer)):
-                if diffs[i] < 0:
-                    success.append(diffs[i])
-                    p_list.append(GT_rec[i])
-                if costs[i] < cost_list[index]:
-                    cost_list[index] = costs[i]
-                    tmp = buffer[i]
+                if _ % 40 == 0 or _ == config["NGT"] - 1:
+                    costs = cf.cost(buffer, dataset, config["lambda"])
+                    diffs = [costs[i] - cost_list[index] for i in range(len(buffer))]
+                    for i in range(len(buffer)):
+                        if diffs[i] < 0:
+                            success.append(diffs[i])
+                            p_list.append(GT_rec[i])
+                        if costs[i] < min_value:
+                            min_value = costs[i]
+                            min_vec = buffer[i]
+                            cost_list[index] = min_value
+                    buffer.clear()
             GT_rec.clear()
-            next_generation.append(tmp)
+            next_generation.append(min_vec)
     return next_generation, function_index
 
 
@@ -159,7 +161,7 @@ def construct_vec(bottleneck_dims: list, population: list, index: int):
     F_c = np.random.normal(0.5, 0.1, 1)
     item1_id, item2_id = np.random.choice(range(len(population)), size=2, replace=False)
     item1, item2 = population[item1_id], population[item2_id]
-    new_item = population[index].copy()
+    new_item = min_vec.copy()
     for i in bottleneck_dims:
         rand = np.random.uniform(0, 1)
         if rand < config["P_m"]:
