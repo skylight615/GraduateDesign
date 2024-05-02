@@ -125,18 +125,16 @@ def evolve(population: list, F: float):
                     bottleneck_dims = [np.random.randint(0, len(population[0]))]
                 new_item = construct_vec(bottleneck_dims, population, index)
                 buffer.append(new_item)
-                if _ % 40 == 0 or _ == config["NGT"] - 1:
-                    costs = cf.cost(buffer, dataset, config["lambda"])
-                    diffs = [costs[i] - cost_list[index] for i in range(len(buffer))]
-                    for i in range(len(buffer)):
-                        if diffs[i] < 0:
-                            success.append(diffs[i])
-                            p_list.append(GT_rec[i])
-                        if costs[i] < min_value:
-                            min_value = costs[i]
-                            min_vec = buffer[i]
-                            cost_list[index] = min_value
-                    buffer.clear()
+            costs = cf.cost(buffer, dataset, config["lambda"])
+            diffs = [costs[i] - cost_list[index] for i in range(len(buffer))]
+            for i in range(len(buffer)):
+                if diffs[i] < 0:
+                    success.append(diffs[i])
+                    p_list.append(GT_rec[i])
+                if costs[i] < min_value:
+                    min_value = costs[i]
+                    min_vec = buffer[i]
+                    cost_list[index] = min_value
             GT_rec.clear()
             next_generation.append(min_vec)
     return next_generation, function_index
